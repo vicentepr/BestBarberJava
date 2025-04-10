@@ -1,0 +1,498 @@
+/* ======================================================
+ *                  SISTEMA DE BARBEARIA
+ *               ====== Classe Main ======
+ * ====================================================== */
+
+import java.sql.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+
+public class Main {
+
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final Barbearia barbearia = new Barbearia();
+
+    /* ======================================================
+     *                    MÉTODOS DE SUPORTE
+     * ====================================================== */
+
+    private static List<Funcionario> listarFuncionariosDoBanco() {
+        List<Funcionario> lista = new ArrayList<>();
+        try (Connection conexao = ConexaoBancoDados.conectar()) {
+            String sql = "SELECT id, nome FROM funcionarios";
+            PreparedStatement stmt = conexao.prepareStatement(sql);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                int id = rs.getInt("id");
+                String nome = rs.getString("nome");
+                lista.add(new Funcionario(id, nome));
+            }
+        } catch (SQLException e) {
+            System.out.println("Erro ao buscar funcionários: " + e.getMessage());
+        }
+        return lista;
+    }
+
+    /* ======================================================
+     *                    AGENDAR SERVIÇO
+     * ====================================================== */
+
+    private static void agendarServico(Cliente cliente) {
+        System.out.println("Escolha o serviço que deseja agendar:");
+        for (int i = 0; i < TipoServico.values().length; i++) {
+            TipoServico tipoServico = TipoServico.values()[i];
+            System.out.println((i + 1) + " - " + tipoServico.getDescricao());
+        }
+
+        System.out.print("Digite o número do serviço desejado: ");
+        int opcaoServico = scanner.nextInt();
+        scanner.nextLine();
+
+        if (opcaoServico < 1 || opcaoServico > TipoServico.values().length) {
+            System.out.println("Opção inválida. Tente novamente.");
+            return;
+        }
+
+        TipoServico tipoServicoEscolhido = TipoServico.values()[opcaoServico - 1];
+
+        List<Funcionario> listaFuncionarios = listarFuncionariosDoBanco();
+        if (listaFuncionarios.isEmpty()) {
+            System.out.println("Nenhum funcionário cadastrado.");
+            return;
+        }
+
+        System.out.println("Escolha um funcionário:");
+        for (Funcionario f : listaFuncionarios) {
+            System.out.println(f);
+        }
+
+        System.out.print("Digite o ID do funcionário desejado: ");
+        int idEscolhido = scanner.nextInt();
+        scanner.nextLine();
+
+        Funcionario funcionarioEscolhido = listaFuncionarios.stream()
+                .filter(f -> f.getId() == idEscolhido)
+                .findFirst()
+                .orElse(null);
+
+        if (funcionarioEscolhido == null) {
+            System.out.println("Funcionário inválido.");
+            return;
+        }
+
+        System.out.print("Digite a data do agendamento (formato: dd-MM-yyyy): ");
+        String data = scanner.nextLine();
+        System.out.print("Digite a hora do agendamento (formato: HH:mm): ");
+        String hora = scanner.nextLine();
+
+        try {
+            String dataHoraString = data + " " + hora;
+            LocalDateTime dataHoraAgendamento = LocalDateTime.parse(dataHoraString, DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"));
+
+            if (barbearia.verificarDisponibilidade(dataHoraAgendamento)) {
+                System.out.println("Horário indisponível. Tente outro horário.");
+                return;
+            }
+
+            try (Connection conexao = ConexaoBancoDados.conectar()) {
+                String sql = "INSERT INTO agendamentos (nome, servico, preco, email, telefone, datahora, status, funcionario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                PreparedStatement stmt = conexao.prepareStatement(sql);
+                stmt.setString(1, cliente.getNome());
+                stmt.setString(2, tipoServicoEscolhido.getNome());
+                stmt.setDouble(3, tipoServicoEscolhido.getPreco());
+                stmt.setString(4, cliente.getEmail());
+                stmt.setString(5, cliente.getTelefone());
+                stmt.setTimestamp(6, Timestamp.valueOf(dataHoraAgendamento));
+                stmt.setString(7, "Agendado");
+                stmt.setString(8, funcionarioEscolhido.getNome());
+
+                stmt.executeUpdate();
+                System.out.println("Agendamento realizado com sucesso para " + tipoServicoEscolhido.getNome() + " com " + funcionarioEscolhido.getNome() + "!");
+            }
+        } catch (DateTimeParseException e) {
+            System.out.println("Formato de data ou hora inválido. Tente novamente.");
+        } catch (SQLException e) {
+            System.out.println("Erro ao salvar agendamento: " + e.getMessage());
+        }
+    }
+
+    /* ======================================================
+     *                  CANCELAR AGENDAMENTO
+     * ====================================================== */
+
+    private static void cancelarAgendamento() {
+        System.out.println("===== Cancelar Agendamento (Admin) =====");
+        listarAgendamentosNoBanco(null);
+
+        System.out.print("Digite o ID do agendamento que deseja cancelar: ");
+        int id = scanner.nextInt();
+        scanner.nextLine();
+
+        try (Connection conexao = ConexaoBancoDados.conectar()) {
+            String sql = "DELETE FROM agendamentos WHERE id = ?";
+            PreparedStatement stmt = conexao.prepareStatement(sql);
+            stmt.setInt(1, id);
+
+            int linhasAfetadas = stmt.executeUpdate();
+            if (linhasAfetadas > 0) {
+                System.out.println("✅ Agendamento cancelado com sucesso!");
+            } else {
+                System.out.println("❌ Agendamento não encontrado.");
+            }
+        } catch (SQLException e) {
+            System.out.println("Erro ao cancelar agendamento: " + e.getMessage());
+        }
+    }
+
+    /* ======================================================
+     *              LISTAR AGENDAMENTOS (Admin/Cliente)
+     * ====================================================== */
+
+    private static void listarAgendamentosNoBanco(Cliente cliente) {
+        try (Connection conexao = ConexaoBancoDados.conectar()) {
+            String sql;
+            PreparedStatement stmt;
+
+            if (cliente != null) {
+                sql = "SELECT id, servico, datahora, funcionario FROM agendamentos WHERE email = ? AND status = 'Agendado' ORDER BY datahora";
+                stmt = conexao.prepareStatement(sql);
+                stmt.setString(1, cliente.getEmail());
+            } else {
+                sql = "SELECT id, nome, servico, datahora, funcionario FROM agendamentos WHERE status = 'Agendado' ORDER BY datahora";
+                stmt = conexao.prepareStatement(sql);
+            }
+
+            ResultSet rs = stmt.executeQuery();
+            boolean encontrou = false;
+
+            System.out.println("\n📋 Agendamentos:");
+            while (rs.next()) {
+                encontrou = true;
+
+                int id = rs.getInt("id");
+                String servico = rs.getString("servico");
+                Timestamp datahora = rs.getTimestamp("datahora");
+                String funcionario = rs.getString("funcionario");
+
+                if (cliente != null) {
+                    System.out.printf("ID: %d | %s com %s às %s\n", id, servico, funcionario,
+                            datahora.toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                } else {
+                    String nomeCliente = rs.getString("nome");
+                    System.out.printf("ID: %d | %s | %s com %s às %s\n", id, nomeCliente, servico, funcionario,
+                            datahora.toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+                }
+            }
+
+            if (!encontrou) {
+                System.out.println("Nenhum agendamento encontrado.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Erro ao listar agendamentos: " + e.getMessage());
+        }
+    }
+
+// ============================================
+// LISTAR FUNCIONÁRIOS DO BANCO
+// ============================================
+private static List<Funcionario> listarFuncionariosDoBanco() {
+    List<Funcionario> lista = new ArrayList<>();
+    try (Connection conexao = ConexaoBancoDados.conectar()) {
+        String sql = "SELECT id, nome FROM funcionarios";
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+        ResultSet rs = stmt.executeQuery();
+
+        while (rs.next()) {
+            int id = rs.getInt("id");
+            String nome = rs.getString("nome");
+            lista.add(new Funcionario(id, nome));
+        }
+    } catch (SQLException e) {
+        System.out.println("Erro ao buscar funcionários: " + e.getMessage());
+    }
+    return lista;
+}
+
+// ============================================
+// AGENDAR SERVIÇO
+// ============================================
+private static void agendarServico(Cliente cliente) {
+    System.out.println("Escolha o serviço que deseja agendar:");
+    for (int i = 0; i < TipoServico.values().length; i++) {
+        TipoServico tipoServico = TipoServico.values()[i];
+        System.out.println((i + 1) + " - " + tipoServico.getDescricao());
+    }
+
+    System.out.print("Digite o número do serviço desejado: ");
+    int opcaoServico = scanner.nextInt();
+    scanner.nextLine();
+
+    if (opcaoServico < 1 || opcaoServico > TipoServico.values().length) {
+        System.out.println("Opção inválida. Tente novamente.");
+        return;
+    }
+
+    TipoServico tipoServicoEscolhido = TipoServico.values()[opcaoServico - 1];
+
+    List<Funcionario> listaFuncionarios = listarFuncionariosDoBanco();
+    if (listaFuncionarios.isEmpty()) {
+        System.out.println("Nenhum funcionário cadastrado.");
+        return;
+    }
+
+    System.out.println("Escolha um funcionário:");
+    for (Funcionario f : listaFuncionarios) {
+        System.out.println(f);
+    }
+
+    System.out.print("Digite o ID do funcionário desejado: ");
+    int idEscolhido = scanner.nextInt();
+    scanner.nextLine();
+
+    Funcionario funcionarioEscolhido = listaFuncionarios.stream()
+            .filter(f -> f.getId() == idEscolhido)
+            .findFirst()
+            .orElse(null);
+
+    if (funcionarioEscolhido == null) {
+        System.out.println("Funcionário inválido.");
+        return;
+    }
+
+    System.out.print("Digite a data do agendamento (formato: dd-MM-yyyy): ");
+    String data = scanner.nextLine();
+
+    System.out.print("Digite a hora do agendamento (formato: HH:mm): ");
+    String hora = scanner.nextLine();
+
+    try {
+        String dataHoraString = data + " " + hora;
+        LocalDateTime dataHoraAgendamento = LocalDateTime.parse(dataHoraString, DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm"));
+
+        if (barbearia.verificarDisponibilidade(dataHoraAgendamento)) {
+            System.out.println("Horário indisponível. Tente outro horário.");
+            return;
+        }
+
+        try (Connection conexao = ConexaoBancoDados.conectar()) {
+            String sql = "INSERT INTO agendamentos (nome, servico, preco, email, telefone, datahora, status, funcionario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            PreparedStatement stmt = conexao.prepareStatement(sql);
+            stmt.setString(1, cliente.getNome());
+            stmt.setString(2, tipoServicoEscolhido.getNome());
+            stmt.setDouble(3, tipoServicoEscolhido.getPreco());
+            stmt.setString(4, cliente.getEmail());
+            stmt.setString(5, cliente.getTelefone());
+            stmt.setTimestamp(6, Timestamp.valueOf(dataHoraAgendamento));
+            stmt.setString(7, "Agendado");
+            stmt.setString(8, funcionarioEscolhido.getNome());
+
+            stmt.executeUpdate();
+            System.out.println("✅ Agendamento realizado com sucesso para " + tipoServicoEscolhido.getNome() + " com " + funcionarioEscolhido.getNome() + "!");
+        }
+    } catch (DateTimeParseException e) {
+        System.out.println("Formato de data ou hora inválido. Tente novamente.");
+    } catch (SQLException e) {
+        System.out.println("Erro ao salvar agendamento: " + e.getMessage());
+    }
+}
+
+// ============================================
+// CANCELAR AGENDAMENTO
+// ============================================
+private static void cancelarAgendamento() {
+    System.out.println("===== Cancelar Agendamento (Admin) =====");
+    listarAgendamentosNoBanco(null); // Mostra todos os agendamentos
+
+    System.out.print("Digite o ID do agendamento que deseja cancelar: ");
+    int id = scanner.nextInt();
+    scanner.nextLine();
+
+    try (Connection conexao = ConexaoBancoDados.conectar()) {
+        String sql = "DELETE FROM agendamentos WHERE id = ?";
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+        stmt.setInt(1, id);
+
+        int linhasAfetadas = stmt.executeUpdate();
+        if (linhasAfetadas > 0) {
+            System.out.println("✅ Agendamento cancelado com sucesso!");
+        } else {
+            System.out.println("❌ Agendamento não encontrado.");
+        }
+    } catch (SQLException e) {
+        System.out.println("Erro ao cancelar agendamento: " + e.getMessage());
+    }
+}
+
+// ============================================
+// LISTAR AGENDAMENTOS (ADMIN E CLIENTE)
+// ============================================
+private static void listarAgendamentosNoBanco(Cliente cliente) {
+    try (Connection conexao = ConexaoBancoDados.conectar()) {
+        String sql;
+        PreparedStatement stmt;
+
+        if (cliente != null) {
+            sql = "SELECT id, servico, datahora, funcionario FROM agendamentos " +
+                  "WHERE email = ? AND status = 'Agendado' ORDER BY datahora";
+            stmt = conexao.prepareStatement(sql);
+            stmt.setString(1, cliente.getEmail());
+        } else {
+            sql = "SELECT id, nome, servico, datahora, funcionario FROM agendamentos " +
+                  "WHERE status = 'Agendado' ORDER BY datahora";
+            stmt = conexao.prepareStatement(sql);
+        }
+
+        ResultSet rs = stmt.executeQuery();
+        boolean encontrou = false;
+        System.out.println("\n📋 Agendamentos:");
+
+        while (rs.next()) {
+            encontrou = true;
+            int id = rs.getInt("id");
+            String servico = rs.getString("servico");
+            Timestamp datahora = rs.getTimestamp("datahora");
+            String funcionario = rs.getString("funcionario");
+
+            if (cliente != null) {
+                System.out.printf("ID: %d | %s com %s às %s\n", id, servico, funcionario,
+                        datahora.toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            } else {
+                String nomeCliente = rs.getString("nome");
+                System.out.printf("ID: %d | %s | %s com %s às %s\n", id, nomeCliente, servico, funcionario,
+                        datahora.toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+            }
+        }
+
+        if (!encontrou) {
+            System.out.println("Nenhum agendamento encontrado.");
+        }
+    } catch (SQLException e) {
+        System.out.println("Erro ao listar agendamentos: " + e.getMessage());
+    }
+}
+
+// ============================================
+// VERIFICAR AGENDAMENTO DO DIA (CLIENTE)
+// ============================================
+private static void verificarAgendamentoDoDia(Cliente cliente) {
+    try (Connection conexao = ConexaoBancoDados.conectar()) {
+        String sql = "SELECT servico, datahora, funcionario FROM agendamentos " +
+                     "WHERE email = ? AND status = 'Agendado' AND DATE(datahora) = CURRENT_DATE";
+
+        PreparedStatement stmt = conexao.prepareStatement(sql);
+        stmt.setString(1, cliente.getEmail());
+
+        ResultSet rs = stmt.executeQuery();
+
+        while (rs.next()) {
+            String servico = rs.getString("servico");
+            Timestamp datahora = rs.getTimestamp("datahora");
+            String funcionario = rs.getString("funcionario");
+
+            System.out.println("\n📅 Você tem um agendamento para hoje:");
+            System.out.printf("Serviço: %s | Funcionário: %s | Horário: %s\n",
+                    servico, funcionario,
+                    datahora.toLocalDateTime().format(DateTimeFormatter.ofPattern("HH:mm")));
+        }
+    } catch (SQLException e) {
+        System.out.println("Erro ao verificar agendamentos do dia: " + e.getMessage());
+    }
+}
+
+// ============================================
+// REMARCAR AGENDAMENTO
+// ============================================
+private static void remarcarAgendamento(Cliente cliente) {
+    try (Connection conexao = ConexaoBancoDados.conectar()) {
+        String buscarAgendamentos = "SELECT id, servico, datahora, funcionario FROM agendamentos " +
+                                    "WHERE email = ? AND status = 'Agendado'";
+        PreparedStatement stmt = conexao.prepareStatement(buscarAgendamentos);
+        stmt.setString(1, cliente.getEmail());
+        ResultSet rs = stmt.executeQuery();
+
+        List<Integer> ids = new ArrayList<>();
+        int count = 1;
+
+        System.out.println("\n===== Seus Agendamentos =====");
+        while (rs.next()) {
+            ids.add(rs.getInt("id"));
+            System.out.printf("%d - %s com %s em %s\n", count++,
+                    rs.getString("servico"),
+                    rs.getString("funcionario"),
+                    rs.getTimestamp("datahora").toLocalDateTime().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        }
+
+        if (ids.isEmpty()) {
+            System.out.println("Você não possui agendamentos.");
+            return;
+        }
+
+        System.out.print("Escolha o número do agendamento para remarcar: ");
+        int opcao = scanner.nextInt();
+        scanner.nextLine();
+
+        if (opcao < 1 || opcao > ids.size()) {
+            System.out.println("Opção inválida.");
+            return;
+        }
+
+        int agendamentoId = ids.get(opcao - 1);
+        System.out.print("Nova data e hora (dd/MM/yyyy HH:mm): ");
+        String novaDataHoraStr = scanner.nextLine();
+
+        LocalDateTime novaDataHora;
+        try {
+            novaDataHora = LocalDateTime.parse(novaDataHoraStr, DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+        } catch (DateTimeParseException e) {
+            System.out.println("Formato inválido.");
+            return;
+        }
+
+        String funcionario = buscarFuncionario(conexao, agendamentoId);
+        if (funcionario == null || !horarioDisponivel(conexao, funcionario, novaDataHora, agendamentoId)) {
+            System.out.println("Esse horário não está disponível para o funcionário.");
+            return;
+        }
+
+        String atualizar = "UPDATE agendamentos SET datahora = ? WHERE id = ?";
+        PreparedStatement updateStmt = conexao.prepareStatement(atualizar);
+        updateStmt.setTimestamp(1, Timestamp.valueOf(novaDataHora));
+        updateStmt.setInt(2, agendamentoId);
+
+        if (updateStmt.executeUpdate() > 0) {
+            System.out.println("Agendamento remarcado com sucesso!");
+        } else {
+            System.out.println("Erro ao remarcar.");
+        }
+    } catch (SQLException e) {
+        System.out.println("Erro: " + e.getMessage());
+    }
+}
+
+// ============================================
+// FUNÇÃO AUXILIAR - BUSCAR FUNCIONÁRIO
+// ============================================
+private static String buscarFuncionario(Connection conexao, int agendamentoId) throws SQLException {
+    String sql = "SELECT funcionario FROM agendamentos WHERE id = ?";
+    PreparedStatement stmt = conexao.prepareStatement(sql);
+    stmt.setInt(1, agendamentoId);
+    ResultSet rs = stmt.executeQuery();
+    return rs.next() ? rs.getString("funcionario") : null;
+}
+
+// ============================================
+// FUNÇÃO AUXILIAR - VERIFICAR HORÁRIO DISPONÍVEL
+// ============================================
+private static boolean horarioDisponivel(Connection conexao, String funcionario, LocalDateTime dataHora, int ignorarId) throws SQLException {
+    String sql = "SELECT COUNT(*) FROM agendamentos WHERE funcionario = ? AND datahora = ? AND status = 'Agendado' AND id <> ?";
+    PreparedStatement stmt = conexao.prepareStatement(sql);
+    stmt.setString(1, funcionario);
+    stmt.setTimestamp(2, Timestamp.valueOf(dataHora));
+    stmt.setInt(3, ignorarId);
+    ResultSet rs = stmt.executeQuery();
+    return rs.next() && rs.getInt(1) == 0;
+}
