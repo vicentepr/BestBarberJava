@@ -1,17 +1,39 @@
-public class Servico implements Ihm {
-    private int id;
+package Model;
+
+import jakarta.persistence.*;
+
+/**
+ * Entidade que representa um serviço oferecido pela barbearia.
+ */
+@Entity
+public class Servico {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String nome;
-    private String descricao;
+
     private double preco;
 
-    public Servico(int id, String nome, String descricao, double preco) {
-        this.id = id;
+    // 🔹 Construtor padrão
+    public Servico() {
+    }
+
+    // 🔹 Construtor parametrizado
+    public Servico(String nome, double preco) {
         this.nome = nome;
-        this.descricao = descricao;
         this.preco = preco;
     }
 
-    public int getId() {
+    // 🔹 Construtor de cópia
+    public Servico(Servico outro) {
+        this.nome = outro.nome;
+        this.preco = outro.preco;
+    }
+
+    // 🔹 Getters e Setters
+    public Long getId() {
         return id;
     }
 
@@ -19,21 +41,24 @@ public class Servico implements Ihm {
         return nome;
     }
 
-    public String getDescricao() {
-        return descricao;
+    public void setNome(String nome) {
+        this.nome = nome;
     }
 
     public double getPreco() {
         return preco;
     }
 
-    @Override
-    public void realizarServico() {
-        System.out.println("Realizando o serviço de " + nome + "...");
+    public void setPreco(double preco) {
+        this.preco = preco;
     }
 
     @Override
     public String toString() {
-        return nome + " | " + descricao + " | R$ " + String.format("%.2f", preco);
+        return "Servico{" +
+                "id=" + id +
+                ", nome='" + nome + '\'' +
+                ", preco=" + preco +
+                '}';
     }
 }
