@@ -1,3 +1,13 @@
+package Controller;
+
+
+import Model.Cliente;
+import Model.Funcionario;
+import Model.Usuario;
+import Repository.ConexaoBancoDados1;
+import Service.Barbearia;
+import Util.TipoUsuario;
+
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,7 +27,7 @@ public class Main {
     private static final Scanner scanner = new Scanner(System.in);
     public static void main(String[] args) {
         usuarios.add(new Usuario("admin", "123456", TipoUsuario.ADMIN));
-        funcionarios.add(new Funcionario("Joo"));
+        funcionarios.add(new Funcionario("Joao"));
         funcionarios.add(new Funcionario("Maria"));
         while (true) {
             System.out.println("===== Bem-Vindo à Best Barber =====");
@@ -68,7 +78,7 @@ public class Main {
         }
     }
     private static Usuario autenticarUsuario(String login, String senha) {
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT nome, senha FROM clientes WHERE nome = ? OR email = ?";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setString(1, login);
@@ -93,7 +103,7 @@ public class Main {
         return null;
     }
     private static void mostrarAgendamentosDoDia(Cliente cliente) {
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT servico, datahora, funcionario FROM agendamentos " +
                     "WHERE email = ? AND DATE(datahora) = CURRENT_DATE AND status = 'Agendado'";
             PreparedStatement stmt = conexao.prepareStatement(sql);
@@ -147,12 +157,12 @@ public class Main {
         int opcao;
         do {
             System.out.println("\n===== Menu Cliente =====");
-            System.out.println("1 - Agendar servio");
+            System.out.println("1 - Agendar serviço");
             System.out.println("2 - Cancelar agendamento");
             System.out.println("3 - Ver agendamentos");
             System.out.println("4 - Remarcar agendamento");
             System.out.println("0 - Sair");
-            System.out.print("Escolha uma Opo: ");
+            System.out.print("Escolha uma Opção: ");
             opcao = scanner.nextInt();
             scanner.nextLine();
             switch (opcao) {
@@ -161,7 +171,7 @@ public class Main {
                 case 3 -> listarAgendamentosNoBanco(cliente);
                 case 4 -> remarcarAgendamento(cliente);
                 case 0 -> System.out.println("Saindo...");
-                default -> System.out.println("Opo invlida!");
+                default -> System.out.println("Opção invlida!");
             }
         } while (opcao != 0);
     }
@@ -174,9 +184,9 @@ public class Main {
             System.out.println("1 - Ver Agendamentos");
             System.out.println("2 - Cancelar Agendamento");
             System.out.println("3 - Cadastrar Funcionrio");
-            System.out.println("4 - Gerenciar Servios");
+            System.out.println("4 - Gerenciar Serviços");
             System.out.println("5 - Sair");
-            System.out.print("Escolha uma Opo: ");
+            System.out.print("Escolha uma Opção: ");
             int opcao = scanner.nextInt();
             scanner.nextLine();
             switch (opcao) {
@@ -188,17 +198,17 @@ public class Main {
                     System.out.println("Saindo... Retornando ao login.");
                     return;
                 }
-                default -> System.out.println("Opo invlida. Tente novamente.");
+                default -> System.out.println("Opção invlida. Tente novamente.");
             }
         }
     }
     private static void menuGerenciarServicos() {
         while (true) {
-            System.out.println("\n--- Gerenciar Servios ---");
-            System.out.println("1 - Adicionar Servio");
-            System.out.println("2 - Editar Servio");
+            System.out.println("\n--- Gerenciar Serviços ---");
+            System.out.println("1 - Adicionar Serviço");
+            System.out.println("2 - Editar Serviço");
             System.out.println("3 - Voltar");
-            System.out.print("Escolha uma Opo: ");
+            System.out.print("Escolha uma Opção: ");
             int opcao = scanner.nextInt();
             scanner.nextLine();
             switch (opcao) {
@@ -207,23 +217,23 @@ public class Main {
                 case 3 -> {
                     return;
                 }
-                default -> System.out.println("Opo invlida.");
+                default -> System.out.println("Opção invlida.");
             }
         }
     }
     // =======================================================
-    // Gerenciamento de Servios
+    // Gerenciamento de Serviços
     // =======================================================
     private static void adicionarServico() {
-        System.out.println("\n== Adicionar Novo Servio ==");
-        System.out.print("Nome do servio: ");
+        System.out.println("\n== Adicionar Novo Serviço ==");
+        System.out.print("Nome do serviço: ");
         String nome = scanner.nextLine();
-        System.out.print("Descrio do servio: ");
+        System.out.print("Descrio do serviço: ");
         String descricao = scanner.nextLine();
         System.out.print("Preo: ");
         double preco = scanner.nextDouble();
         scanner.nextLine();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "INSERT INTO servicos (nome, descricao, preco) VALUES (?, ?, ?)";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setString(1, nome);
@@ -231,18 +241,18 @@ public class Main {
             stmt.setDouble(3, preco);
             int linhas = stmt.executeUpdate();
             if (linhas > 0) {
-                System.out.println(" Servio adicionado com sucesso!");
+                System.out.println(" Serviço adicionado com sucesso!");
             } else {
-                System.out.println(" Falha ao adicionar servio.");
+                System.out.println(" Falha ao adicionar serviço.");
             }
         } catch (SQLException e) {
-            System.out.println("Erro ao adicionar servio: " + e.getMessage());
+            System.out.println("Erro ao adicionar serviço: " + e.getMessage());
         }
     }
     private static void editarServico() {
-        System.out.println("\n== Editar Servio ==");
+        System.out.println("\n== Editar Serviço ==");
         List<Integer> ids = new ArrayList<>();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String buscar = "SELECT id, nome, descricao, preco FROM servicos";
             PreparedStatement stmt = conexao.prepareStatement(buscar);
             ResultSet rs = stmt.executeQuery();
@@ -257,14 +267,14 @@ public class Main {
                 index++;
             }
             if (ids.isEmpty()) {
-                System.out.println("Nenhum servio cadastrado.");
+                System.out.println("Nenhum serviço cadastrado.");
                 return;
             }
-            System.out.print("Escolha o nmero do servio para editar: ");
+            System.out.print("Escolha o nmero do serviço para editar: ");
             int escolha = scanner.nextInt();
             scanner.nextLine();
             if (escolha < 1 || escolha > ids.size()) {
-                System.out.println("Opo invlida.");
+                System.out.println("Opção invlida.");
                 return;
             }
             int idSelecionado = ids.get(escolha - 1);
@@ -285,11 +295,11 @@ public class Main {
             updateStmt.setDouble(4, novoPreco);
             updateStmt.setInt(5, idSelecionado);
             if (updateStmt.executeUpdate() > 0) {
-                System.out.println(" Servio atualizado com sucesso!");
+                System.out.println(" Serviço atualizado com sucesso!");
             } else {
-                System.out.println(" Falha ao atualizar servio.");
+                System.out.println(" Falha ao atualizar serviço.");
             }
-        } catch (SQLException e) {System.out.println("Erro ao editar servio: " + e.getMessage());
+        } catch (SQLException e) {System.out.println("Erro ao editar serviço: " + e.getMessage());
         }
     }
     // =======================================================
@@ -298,7 +308,7 @@ public class Main {
     private static void cadastrarFuncionario() {
         System.out.print("Digite o nome do novo funcionrio: ");
         String nomeFuncionario = scanner.nextLine();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "INSERT INTO funcionarios (nome) VALUES (?)";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setString(1, nomeFuncionario);
@@ -312,23 +322,25 @@ public class Main {
     }
     private static List<Funcionario> listarFuncionariosDoBanco() {
         List<Funcionario> lista = new ArrayList<>();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT id, nome FROM funcionarios";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 int id = rs.getInt("id");
                 String nome = rs.getString("nome");
-                lista.add(new Funcionario(id, nome));
+                Funcionario funcionario = new Funcionario((long) id, nome);
+                lista.add(funcionario); // <-- ESSA LINHA ESTÁ FALTANDO
             }
+
         } catch (SQLException e) {
-            System.out.println("Erro ao buscar funcionrios: " + e.getMessage());
+            System.out.println("Erro ao buscar funcionários: " + e.getMessage());
         }
         return lista;
     }
     // Listar agendamentos do cliente
     private static void listarTodosAgendamentosNoBanco() {
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT id, nome, servico, funcionario, datahora, status FROM agendamentos ORDER BY datahora";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
@@ -340,7 +352,7 @@ public class Main {
                 String funcionario = rs.getString("funcionario");
                 LocalDateTime dataHora = rs.getTimestamp("datahora").toLocalDateTime();
                 String status = rs.getString("status");
-                System.out.printf("ID: %d | Cliente: %s | Servio: %s | Funcionrio: %s | %s | Status: %s\n",
+                System.out.printf("ID: %d | Cliente: %s | Serviço: %s | Funcionrio: %s | %s | Status: %s\n",
                 id, nome, servico, funcionario,
                         dataHora.format(DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm")),
                         status);
@@ -352,7 +364,7 @@ public class Main {
     // Listar todos os agendamentos (admin)
     private static boolean listarAgendamentosNoBanco(Cliente cliente) {
         boolean encontrou = false;
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT id, servico, datahora, funcionario FROM agendamentos " +
                     "WHERE email = ? AND status = 'Agendado' ORDER BY datahora";
             PreparedStatement stmt = conexao.prepareStatement(sql);
@@ -378,7 +390,7 @@ public class Main {
         return encontrou;
     }
     // =======================================================
-    // Agendamento de Servios
+    // Agendamento de Serviços
     // =======================================================
     private static void agendarServico(Cliente cliente) {
         // Solicita a data do agendamento
@@ -401,7 +413,7 @@ public class Main {
 
         // Solicita o serviço
         List<Map<String, Object>> servicos = new ArrayList<>();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT id, nome, descricao, preco FROM servicos";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
@@ -450,7 +462,7 @@ public class Main {
 
         System.out.println("Escolha um funcionário:");
         for (Funcionario f : listaFuncionarios) {
-            System.out.println(f);
+            System.out.printf("%d - %s\n", f.getId(), f.getNome()); // <-- apenas ID e nome
         }
 
         System.out.print("Digite o ID do funcionário desejado: ");
@@ -501,7 +513,7 @@ public class Main {
         }
 
         // Insere o agendamento no banco de dados
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "INSERT INTO agendamentos (nome, servico, preco, email, telefone, datahora, status, funcionario) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = conexao.prepareStatement(sql);
@@ -536,7 +548,7 @@ public class Main {
         }
 
         // Verificar se algum horário já está ocupado
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sqlVerifica = "SELECT datahora FROM agendamentos WHERE funcionario = ? AND status = 'Agendado'";
             PreparedStatement stmtVerifica = conexao.prepareStatement(sqlVerifica);
             stmtVerifica.setString(1, funcionario.getNome());
@@ -564,7 +576,7 @@ public class Main {
         System.out.print("Digite o ID do agendamento que deseja cancelar: ");
         int id = scanner.nextInt();
         scanner.nextLine();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "UPDATE agendamentos SET status = 'Cancelado' WHERE id = ? AND id_usuario = ?";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setInt(1, id);
@@ -586,7 +598,7 @@ public class Main {
         System.out.print("Digite o ID do agendamento que deseja cancelar: ");
         int id = scanner.nextInt();
         scanner.nextLine();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "UPDATE agendamentos SET status = 'Cancelado' WHERE id = ?";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setInt(1, id);
@@ -603,7 +615,7 @@ public class Main {
     private static void remarcarAgendamento(Cliente cliente) {
         List<Map<String, Object>> agendamentos = new ArrayList<>();
 
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "SELECT id, datahora, servico, funcionario FROM agendamentos " +
                     "WHERE email = ? AND status = 'Agendado'";
             PreparedStatement stmt = conexao.prepareStatement(sql);
@@ -692,7 +704,7 @@ public class Main {
         LocalDateTime novoHorario = horariosDisponiveis.get(opcaoHorario - 1);
 
         // Atualiza o agendamento no banco
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sqlUpdate = "UPDATE agendamentos SET datahora = ? WHERE id = ?";
             PreparedStatement stmtUpdate = conexao.prepareStatement(sqlUpdate);
             stmtUpdate.setTimestamp(1, Timestamp.valueOf(novoHorario));
@@ -720,7 +732,7 @@ public class Main {
             LocalDateTime dataHora = LocalDateTime.of(data, hora);
 
             // Verifica se o horário já está ocupado para o funcionário
-            try (Connection conexao = ConexaoBancoDados.conectar()) {
+            try (Connection conexao = ConexaoBancoDados1.conectar()) {
                 String sqlVerificaHorario = "SELECT COUNT(*) FROM agendamentos WHERE funcionario = ? AND datahora = ? AND status = 'Agendado'";
                 PreparedStatement stmtVerificaHorario = conexao.prepareStatement(sqlVerificaHorario);
                 stmtVerificaHorario.setString(1, nomeFuncionario);
@@ -765,7 +777,7 @@ public class Main {
         System.out.print("Digite o ID do agendamento que deseja cancelar: ");
         int id = scanner.nextInt();
         scanner.nextLine();
-        try (Connection conexao = ConexaoBancoDados.conectar()) {
+        try (Connection conexao = ConexaoBancoDados1.conectar()) {
             String sql = "UPDATE agendamentos SET status = 'Cancelado' WHERE id = ? AND email = ?";
             PreparedStatement stmt = conexao.prepareStatement(sql);
             stmt.setInt(1, id);
