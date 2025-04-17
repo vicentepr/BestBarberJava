@@ -1,7 +1,9 @@
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+package Service;
+
+import Model.Agendamento;
+import Repository.DBConnection1;
+
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +14,7 @@ public class Barbearia {
     public void adicionarAgendamento(Agendamento agendamento) {
         agendamentos.add(agendamento);
 
-        try (Connection conn = DBConnection.getConnection()) {
+        try (Connection conn = DBConnection1.getConnection()) {
             String sql = "INSERT INTO agendamentos (nome, servico, preco, email, telefone, datahora) VALUES (?, ?, ?, ?, ?, ?)";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, agendamento.getCliente().getNome());
@@ -31,7 +33,7 @@ public class Barbearia {
     public void listarAgendamentos() {
         System.out.println("===== Lista de Agendamentos =====");
 
-        try (Connection conn = DBConnection.getConnection()) {
+        try (Connection conn = DBConnection1.getConnection()) {
             String sql = "SELECT nome, servico, preco, email, telefone, datahora FROM agendamentos ORDER BY datahora";
             PreparedStatement stmt = conn.prepareStatement(sql);
             ResultSet rs = stmt.executeQuery();
@@ -68,7 +70,7 @@ public class Barbearia {
     public void cancelarAgendamento(LocalDateTime dataHora) {
         agendamentos.removeIf(a -> a.getDataHora().equals(dataHora));
 
-        try (Connection conn = DBConnection.getConnection()) {
+        try (Connection conn = DBConnection1.getConnection()) {
             String sql = "DELETE FROM agendamentos WHERE datahora = ?";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setTimestamp(1, java.sql.Timestamp.valueOf(dataHora));
@@ -84,7 +86,7 @@ public class Barbearia {
     }
 
     public boolean verificarDisponibilidade(LocalDateTime dataHora) {
-        try (Connection conn = DBConnection.getConnection()) {
+        try (Connection conn = DBConnection1.getConnection()) {
             String sql = "SELECT COUNT(*) FROM agendamentos WHERE datahora = ?";
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setTimestamp(1, java.sql.Timestamp.valueOf(dataHora));
