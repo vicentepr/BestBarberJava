@@ -1,3 +1,7 @@
+package Model;
+
+import Util.TipoUsuario;
+import Util.Ihm;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
