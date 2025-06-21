@@ -1,0 +1,20 @@
+src/
+├── model/
+│   ├── Cliente.java
+│   ├── Servico.java
+│   ├── Funcionario.java
+│   └── Agendamento.java
+├── repository/
+│   ├── ClienteRepository.java
+│   ├── ServicoRepository.java (futuramente)
+├── service/
+│   ├── ClienteService.java
+│   ├── ServicoService.java (futuramente)
+├── controller/
+│   └── (pode conter controladores Swing, como ClienteController.java)
+├── view/
+│   └── ClienteView.java
+├── util/
+│   ├── JPAUtil.java
+│   └── ValidadorCampos.java (opcional)
+└── Main.java
