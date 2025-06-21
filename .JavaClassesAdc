@@ -1,0 +1,98 @@
+package repository;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import model.Cliente;
+import util.JPAUtil;
+
+import java.util.List;
+
+public class ClienteRepository {
+
+    public void salvar(Cliente cliente) {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.persist(cliente);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
+
+    public void atualizar(Cliente cliente) {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.merge(cliente);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
+
+    public void excluir(Long id) {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            Cliente cliente = em.find(Cliente.class, id);
+            if (cliente != null) {
+                em.getTransaction().begin();
+                em.remove(cliente);
+                em.getTransaction().commit();
+            }
+        } finally {
+            em.close();
+        }
+    }
+
+    public Cliente buscarPorId(Long id) {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            return em.find(Cliente.class, id);
+        } finally {
+            em.close();
+        }
+    }
+
+    public List<Cliente> listarTodos() {
+        EntityManager em = JPAUtil.getEntityManager();
+        try {
+            TypedQuery<Cliente> query = em.createQuery("SELECT c FROM Cliente c", Cliente.class);
+            return query.getResultList();
+        } finally {
+            em.close();
+        }
+    }
+}
+
+package service;
+
+import model.Cliente;
+import repository.ClienteRepository;
+
+import java.util.List;
+
+public class ClienteService {
+
+    private ClienteRepository clienteRepository = new ClienteRepository();
+
+    public void salvar(Cliente cliente) {
+        clienteRepository.salvar(cliente);
+    }
+
+    public void atualizar(Cliente cliente) {
+        clienteRepository.atualizar(cliente);
+    }
+
+    public void excluir(Long id) {
+        clienteRepository.excluir(id);
+    }
+
+    public Cliente buscarPorId(Long id) {
+        return clienteRepository.buscarPorId(id);
+    }
+
+    public List<Cliente> listarTodos() {
+        return clienteRepository.listarTodos();
+    }
+}
