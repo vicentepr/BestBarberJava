@@ -1,0 +1,127 @@
+package view;
+
+import model.Cliente;
+import service.ClienteService;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.List;
+
+public class ClienteView extends JFrame {
+    private JTextField nomeField, emailField;
+    private JButton salvarButton, editarButton, excluirButton, limparButton;
+    private JTable tabelaClientes;
+    private DefaultTableModel tableModel;
+
+    private ClienteService clienteService;
+    private Cliente clienteSelecionado;
+
+    public ClienteView() {
+        clienteService = new ClienteService();
+        setTitle("Cadastro de Clientes");
+        setSize(600, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        JPanel painelFormulario = new JPanel(new GridLayout(3, 2));
+        painelFormulario.add(new JLabel("Nome:"));
+        nomeField = new JTextField();
+        painelFormulario.add(nomeField);
+
+        painelFormulario.add(new JLabel("Email:"));
+        emailField = new JTextField();
+        painelFormulario.add(emailField);
+
+        salvarButton = new JButton("Salvar");
+        painelFormulario.add(salvarButton);
+        limparButton = new JButton("Limpar");
+        painelFormulario.add(limparButton);
+
+        add(painelFormulario, BorderLayout.NORTH);
+
+        tableModel = new DefaultTableModel(new String[]{"ID", "Nome", "Email"}, 0);
+        tabelaClientes = new JTable(tableModel);
+        JScrollPane scrollPane = new JScrollPane(tabelaClientes);
+        add(scrollPane, BorderLayout.CENTER);
+
+        JPanel painelBotoes = new JPanel();
+        editarButton = new JButton("Editar");
+        excluirButton = new JButton("Excluir");
+        painelBotoes.add(editarButton);
+        painelBotoes.add(excluirButton);
+        add(painelBotoes, BorderLayout.SOUTH);
+
+        salvarButton.addActionListener(e -> salvarOuAtualizar());
+        editarButton.addActionListener(e -> carregarSelecionado());
+        excluirButton.addActionListener(e -> excluirSelecionado());
+        limparButton.addActionListener(e -> limparCampos());
+
+        carregarTabela();
+    }
+
+    private void salvarOuAtualizar() {
+        String nome = nomeField.getText();
+        String email = emailField.getText();
+
+        if (nome.isEmpty() || email.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Preencha todos os campos.");
+            return;
+        }
+
+        if (clienteSelecionado == null) {
+            Cliente novo = new Cliente(nome, email);
+            clienteService.salvar(novo);
+        } else {
+            clienteSelecionado.setNome(nome);
+            clienteSelecionado.setEmail(email);
+            clienteService.atualizar(clienteSelecionado);
+            clienteSelecionado = null;
+        }
+
+        limparCampos();
+        carregarTabela();
+    }
+
+    private void carregarSelecionado() {
+        int row = tabelaClientes.getSelectedRow();
+        if (row >= 0) {
+            Long id = (Long) tableModel.getValueAt(row, 0);
+            clienteSelecionado = clienteService.buscarPorId(id);
+            nomeField.setText(clienteSelecionado.getNome());
+            emailField.setText(clienteSelecionado.getEmail());
+        }
+    }
+
+    private void excluirSelecionado() {
+        int row = tabelaClientes.getSelectedRow();
+        if (row >= 0) {
+            Long id = (Long) tableModel.getValueAt(row, 0);
+            int confirm = JOptionPane.showConfirmDialog(this, "Confirma exclusão?", "Excluir", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                clienteService.excluir(id);
+                carregarTabela();
+            }
+        }
+    }
+
+    private void carregarTabela() {
+        tableModel.setRowCount(0);
+        List<Cliente> clientes = clienteService.listarTodos();
+        for (Cliente c : clientes) {
+            tableModel.addRow(new Object[]{c.getId(), c.getNome(), c.getEmail()});
+        }
+    }
+
+    private void limparCampos() {
+        nomeField.setText("");
+        emailField.setText("");
+        clienteSelecionado = null;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new ClienteView().setVisible(true));
+    }
+}
